@@ -18,6 +18,7 @@ import type { GetInteractiveChatStateUseCase } from '@shepai/core/application/us
 import type { IInteractiveSessionService } from '@shepai/core/application/ports/output/services/interactive-session-service.interface';
 import { getShepHomeDir } from '@shepai/core/infrastructure/services/filesystem/shep-directory.service';
 import { INTERACTIVE_AGENT_UNSUPPORTED_CODE } from '@shepai/core/domain/errors/interactive-agent-unsupported.error';
+import { CONCURRENT_SESSION_LIMIT_CODE } from '@shepai/core/domain/errors/concurrent-session-limit.error';
 import { errorCode } from '@/lib/error-code';
 
 export const dynamic = 'force-dynamic';
@@ -65,16 +66,20 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
     // An agent without an interactive mode is the user's to fix (Settings), so
-    // answer 422 with the message. Match on `code`: `instanceof` never matches
-    // across the route bundle (see lib/error-code.ts).
+    // answer 422 with the message. Match on `code`, not the message or
+    // `instanceof`: `instanceof` never matches across the route bundle
+    // (see lib/error-code.ts).
     if (errorCode(error) === INTERACTIVE_AGENT_UNSUPPORTED_CODE) {
       return NextResponse.json(
         { error: (error as Error).message, code: INTERACTIVE_AGENT_UNSUPPORTED_CODE },
         { status: 422 }
       );
     }
-    if (error instanceof Error && error.message.includes('concurrent session limit')) {
-      return NextResponse.json({ error: error.message }, { status: 429 });
+    if (errorCode(error) === CONCURRENT_SESSION_LIMIT_CODE) {
+      return NextResponse.json(
+        { error: (error as Error).message, code: CONCURRENT_SESSION_LIMIT_CODE },
+        { status: 429 }
+      );
     }
     // eslint-disable-next-line no-console
     console.error('[POST /api/interactive/chat/:featureId/messages]', error);

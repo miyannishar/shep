@@ -11,7 +11,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { resolve } from '@/lib/server-container';
 import type { StartInteractiveSessionUseCase } from '@shepai/core/application/use-cases/interactive/start-interactive-session.use-case';
-import { ConcurrentSessionLimitError } from '@shepai/core/domain/errors/concurrent-session-limit.error';
+import { CONCURRENT_SESSION_LIMIT_CODE } from '@shepai/core/domain/errors/concurrent-session-limit.error';
 import { INTERACTIVE_AGENT_UNSUPPORTED_CODE } from '@shepai/core/domain/errors/interactive-agent-unsupported.error';
 import { errorCode } from '@/lib/error-code';
 
@@ -48,12 +48,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 422 }
       );
     }
-    if (error instanceof ConcurrentSessionLimitError) {
+    if (errorCode(error) === CONCURRENT_SESSION_LIMIT_CODE) {
       return NextResponse.json(
-        {
-          error: error.message,
-          code: 'CONCURRENT_SESSION_LIMIT',
-        },
+        { error: (error as Error).message, code: CONCURRENT_SESSION_LIMIT_CODE },
         { status: 429 }
       );
     }
